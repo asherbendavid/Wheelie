@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
 import kotlin.math.min
 
@@ -38,7 +39,7 @@ class WheelView @JvmOverloads constructor(
     private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         style = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 0f
     }
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -71,6 +72,7 @@ class WheelView @JvmOverloads constructor(
         }
 
         drawWheel(canvas)
+        drawPointer(canvas)
     }
 
     private fun drawEmptyState(canvas: Canvas) {
@@ -136,6 +138,23 @@ class WheelView @JvmOverloads constructor(
         canvas.restore()
     }
 
+    private fun drawPointer(canvas: Canvas) {
+        val cx = wheelBounds.centerX()
+        val wheelDiameter = wheelBounds.width()
+        val triangleWidth = wheelDiameter * 0.06f
+        val triangleHeight = wheelDiameter * 0.07f
+        val overlapIntoWheel = wheelDiameter * 0.015f
+        val topY = wheelBounds.top + overlapIntoWheel // slightly above the wheel's edge
+
+        pointerPath.reset()
+        pointerPath.moveTo(cx - triangleWidth / 2f, topY - triangleHeight)
+        pointerPath.lineTo(cx + triangleWidth / 2f, topY - triangleHeight)
+        pointerPath.lineTo(cx, topY)
+        pointerPath.close()
+
+        canvas.drawPath(pointerPath, pointerPaint)
+    }
+
     private fun truncate(text: String, maxWidthPx: Float): String {
         if (textPaint.measureText(text) <= maxWidthPx) return text
 
@@ -150,8 +169,8 @@ class WheelView @JvmOverloads constructor(
         return "…"
     }
 
-    private fun spToPx(sp: Float): Float {
-        return sp * resources.displayMetrics.scaledDensity
+      private fun spToPx(sp: Float): Float {
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, resources.displayMetrics)
     }
 
     private fun calculateTextSize(slotCount: Int): Float {
@@ -172,4 +191,11 @@ class WheelView @JvmOverloads constructor(
         val size = min(measuredWidth, measuredHeight)
         setMeasuredDimension(size, size)
     }
+
+    private val pointerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#4B0082") // matches your Spin button purple — adjust if it's a different exact hex
+        style = Paint.Style.FILL
+    }
+
+    private val pointerPath = android.graphics.Path()
 }
