@@ -8,12 +8,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+
 //import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 
     private var currentSlots: List<TaskSlot> = emptyList()
     private lateinit var wheelView: WheelView
+    private lateinit var spinButton: Button
+    private lateinit var addTaskFab: FloatingActionButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,33 +31,39 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        val rawTasks = listOf(
-            Task(1, "Mow the lawn"),
-            Task(2, "Pack away shopping"),
-            Task(3, "Fix loose db board cover"),
-            Task(4, "Feed the chickens"),
-            Task(5, "Walk the dog"),
-            Task(6, "Empty dustbins"),
-            Task(7, "Brush the cat")
-        )
-        currentSlots = buildSlots(rawTasks)
-
         wheelView = findViewById(R.id.wheelView)
-        wheelView.setSlots(currentSlots)
+        spinButton = findViewById<Button>(R.id.spinButton)
+        addTaskFab = findViewById<FloatingActionButton>(R.id.addTaskFab)
 
-        // inside onCreate, after wheelView.setSlots(...)
-        val spinButton = findViewById<Button>(R.id.spinButton)
+
+        refreshWheelFromDatabase()
+
         spinButton.visibility = if (currentSlots.isEmpty()) View.GONE else View.VISIBLE
         spinButton.setOnClickListener {
            startSpin()
+        }
+
+        addTaskFab.setOnClickListener {
+            val dialog = AddTaskDialogFragment()
+            dialog.onTaskAdded = { refreshWheelFromDatabase() }
+            dialog.show(supportFragmentManager, AddTaskDialogFragment.TAG)
         }
     }
 
     private var isSpinning = false
 
+    private fun refreshWheelFromDatabase() {
+        lifecycleScope.launch {
+            val allTasks = AppDatabase.getInstance(this@MainActivity).taskDao().getAll()
+            currentSlots = buildSlots(allTasks)
+            wheelView.setSlots(currentSlots)
+            spinButton.visibility = if (currentSlots.isEmpty()) View.GONE else View.VISIBLE
+        }
+    }
     private fun startSpin() {
         if (isSpinning || currentSlots.isEmpty()) return
         isSpinning = true
+        addTaskFab.isEnabled = false
 
         val slotCount = currentSlots.size
         val sweepPerSlot = 360f / slotCount
@@ -72,9 +84,11 @@ class MainActivity : AppCompatActivity() {
         animator.addListener(object : android.animation.AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: android.animation.Animator) {
                 isSpinning = false
+                addTaskFab.isEnabled = true
                 val landedIndex = calculateLandedIndex(wheelView.rotationDegrees, sweepPerSlot, slotCount)
                 val landedSlot = currentSlots[landedIndex]
-                Toast.makeText(this@MainActivity, "Landed on: ${landedSlot.text}", Toast.LENGTH_SHORT).show()
+                //Toast.makeText(this@MainActivity, "Landed on: ${landedSlot.text}", Toast.LENGTH_SHORT).show()
+                showResultDialog(landedSlot)
             }
         })
 
@@ -89,5 +103,11 @@ class MainActivity : AppCompatActivity() {
         val angleUnderPointer = ((270f - normalized) % 360f + 360f) % 360f
         val index = (angleUnderPointer / sweepPerSlot).toInt()
         return index.coerceIn(0, slotCount - 1)
+    }
+
+    private fun showResultDialog(slot: TaskSlot) {
+        val dialog = ResultDialogFragment.newInstance(slot.taskId, slot.text)
+        dialog.onResolved = { refreshWheelFromDatabase() }
+        dialog.show(supportFragmentManager, ResultDialogFragment.TAG)
     }
 }
