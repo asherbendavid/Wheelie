@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
         spinButton = findViewById<Button>(R.id.spinButton)
         addTaskFab = findViewById<FloatingActionButton>(R.id.addTaskFab)
 
-
         refreshWheelFromDatabase()
 
         spinButton.visibility = if (currentSlots.isEmpty()) View.GONE else View.VISIBLE
@@ -50,6 +49,17 @@ class MainActivity : AppCompatActivity() {
             val dialog = AddTaskDialogFragment()
             dialog.onTaskAdded = { refreshWheelFromDatabase() }
             dialog.show(supportFragmentManager, AddTaskDialogFragment.TAG)
+        }
+
+        val pending = PendingTaskStore.getPending(this)
+        if (pending != null) {
+            val (taskId, taskText) = pending
+            val dialog = ResultDialogFragment.newInstance(taskId, taskText)
+            dialog.onResolved = {
+                PendingTaskStore.clear(this)
+                refreshWheelFromDatabase()
+            }
+            dialog.show(supportFragmentManager, ResultDialogFragment.TAG)
         }
     }
 
@@ -109,8 +119,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showResultDialog(slot: TaskSlot) {
+        PendingTaskStore.save(this, slot.taskId, slot.text)
         val dialog = ResultDialogFragment.newInstance(slot.taskId, slot.text)
-        dialog.onResolved = { refreshWheelFromDatabase() }
+        dialog.onResolved = {
+            PendingTaskStore.clear(this)
+            refreshWheelFromDatabase()
+        }
         dialog.show(supportFragmentManager, ResultDialogFragment.TAG)
     }
 }
