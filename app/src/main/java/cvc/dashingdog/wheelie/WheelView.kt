@@ -52,6 +52,11 @@ class WheelView @JvmOverloads constructor(
         textSize = spToPx(16f)
     }
 
+    private val singleTaskTextPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = spToPx(18f)
+    }
+
     private val wheelBounds = RectF()
 
     fun setSlots(newSlots: List<TaskSlot>) {
@@ -93,6 +98,12 @@ class WheelView @JvmOverloads constructor(
     }
 
     private fun drawWheel(canvas: Canvas) {
+
+        if (slots.size == 1) {
+            drawSingleTask(canvas)
+            return
+        }
+
         val sweepPerSlot = 360f / slots.size
         val textSize = calculateTextSize(slots.size)
         textPaint.textSize = textSize
@@ -114,6 +125,29 @@ class WheelView @JvmOverloads constructor(
             drawSlotText(canvas, slot.text, cx, cy, radius, startAngle, sweepPerSlot)
         }
 
+        canvas.restore()
+        //drawPointer(canvas)
+    }
+
+    private fun drawSingleTask(canvas: Canvas) {
+        wedgePaint.color = wedgeColors[0]
+        canvas.drawOval(wheelBounds, wedgePaint)
+
+        val text = slots[0].text
+        val availableWidth = (wheelBounds.width() * 0.7f).toInt().coerceAtLeast(1)
+
+        val staticLayout = android.text.StaticLayout.Builder
+            .obtain(text, 0, text.length, singleTaskTextPaint, availableWidth)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
+            .build()
+
+        val cx = wheelBounds.centerX()
+        val cy = wheelBounds.centerY()
+        val verticalOffset = wheelBounds.height() * 0.22f // pushes text up, clear of the Spin button
+
+        canvas.save()
+        canvas.translate(cx - availableWidth / 2f, cy - staticLayout.height / 2f - verticalOffset)
+        staticLayout.draw(canvas)
         canvas.restore()
     }
 

@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -40,7 +39,11 @@ class MainActivity : AppCompatActivity() {
 
         spinButton.visibility = if (currentSlots.isEmpty()) View.GONE else View.VISIBLE
         spinButton.setOnClickListener {
-           startSpin()
+            if (currentSlots.size == 1) {
+                showResultDialog(currentSlots[0])
+            } else {
+                startSpin()
+            }
         }
 
         addTaskFab.setOnClickListener {
